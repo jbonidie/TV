@@ -24,13 +24,12 @@
     body, html {
       width: 100%;
       height: 100%;
-      background-color: var(--bg-color);
+      background-color: #000;
       color: var(--text-main);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       overflow: hidden;
     }
 
-    /* Fullscreen Player Container */
     #player-wrapper {
       position: absolute;
       top: 0;
@@ -47,7 +46,6 @@
       border: none;
     }
 
-    /* Control Panel Overlay (Hidden in Signage Mode) */
     #dashboard-overlay {
       position: absolute;
       top: 0;
@@ -220,12 +218,16 @@
 </head>
 <body>
 
-  <!-- YouTube Embed Container -->
+  <!-- Optimized Embed Container for Signage Players -->
   <div id="player-wrapper">
-    <iframe id="player-iframe" allow="autoplay; fullscreen" allowfullscreen></iframe>
+    <iframe 
+      id="player-iframe" 
+      allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope" 
+      allowfullscreen
+      referrerpolicy="origin-when-cross-origin">
+    </iframe>
   </div>
 
-  <!-- Dashboard Controls (Visible when not passing URL parameters) -->
   <div id="dashboard-overlay">
     <div class="card">
       <h1>YouTube Signage Link Generator</h1>
@@ -241,7 +243,7 @@
           <input type="checkbox" id="opt-autoplay" checked> Autoplay
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" id="opt-mute" checked> Mute Audio (Recommended)
+          <input type="checkbox" id="opt-mute" checked> Mute Audio (Required for Autoplay)
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="opt-loop" checked> Loop Video
@@ -320,7 +322,7 @@
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    // Auto-Run Logic when page loads
+    // Auto-Run Logic optimized for Signage Players
     window.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       const videoParam = urlParams.get('v') || urlParams.get('video');
@@ -331,11 +333,10 @@
         const isMuted = urlParams.get('mute') !== '0';
         const loop = urlParams.get('loop') === '1';
 
-        // Hide Dashboard UI for Signage Player
         document.getElementById('dashboard-overlay').style.display = 'none';
 
-        // Build nocookie iframe URL
-        let embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoPlay ? 1 : 0}&mute=${isMuted ? 1 : 0}&rel=0&enablejsapi=1&controls=0`;
+        // Optimized YouTube URL params for hardware WebViews
+        let embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoPlay ? 1 : 0}&mute=${isMuted ? 1 : 0}&rel=0&controls=0&playsinline=1&widget_referrer=${encodeURIComponent(window.location.origin)}`;
         
         if (loop) {
           embedSrc += `&loop=1&playlist=${videoId}`;
