@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Signage Embed Player</title>
+  <style>
+    :root {
+      --bg-color: #0f0f11;
+      --card-bg: #1a1a1e;
+      --accent: #ff0050;
+      --accent-hover: #e00045;
+      --text-main: #ffffff;
+      --text-muted: #a0a0ab;
+      --border: #2a2a32;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow: hidden;
+    }
+
+    /* Fullscreen Player Container */
+    #player-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: #000;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Control Panel Overlay (Hidden in Signage Mode) */
+    #dashboard-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      background-color: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #111114;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      cursor: pointer;
+      text-transform: none;
+    }
+
+    .checkbox-label input {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: #2a2a32;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: #3a3a44;
+    }
+
+    .output-box {
+      margin-top: 20px;
+      padding: 12px;
+      background: #111114;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      display: none;
+    }
+
+    .output-box.active {
+      display: block;
+    }
+
+    .output-url {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #00ff88;
+      word-break: break-all;
+      margin-top: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      background: #00ff88;
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- YouTube Embed Container -->
+  <div id="player-wrapper">
+    <iframe id="player-iframe" allow="autoplay; fullscreen" allowfullscreen></iframe>
+  </div>
+
+  <!-- Dashboard Controls (Visible when not passing URL parameters) -->
+  <div id="dashboard-overlay">
+    <div class="card">
+      <h1>YouTube Signage Link Generator</h1>
+      <p class="subtitle">Create auto-playing links configured for Clear Digital SHO and Error 153 bypass.</p>
+
+      <div class="input-group">
+        <label for="yt-url">YouTube URL or Video ID</label>
+        <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ" autofocus>
+      </div>
+
+      <div class="options-grid">
+        <label class="checkbox-label">
+          <input type="checkbox" id="opt-autoplay" checked> Autoplay
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="opt-mute" checked> Mute Audio (Recommended)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="opt-loop" checked> Loop Video
+        </label>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-primary" onclick="generateAndCopy()">Copy Signage URL</button>
+        <button class="btn-secondary" onclick="previewVideo()">Preview Now</button>
+      </div>
+
+      <div id="output-box" class="output-box">
+        <label>Generated Link for SHO:</label>
+        <div id="output-url" class="output-url"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Link copied to clipboard!</div>
+
+  <script>
+    function extractYouTubeId(url) {
+      if (!url) return '';
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.trim().match(regExp);
+      return (match && match[2].length === 11) ? match[2] : url.trim();
+    }
+
+    function buildSignageUrl(videoId) {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const autoplay = document.getElementById('opt-autoplay').checked ? '1' : '0';
+      const mute = document.getElementById('opt-mute').checked ? '1' : '0';
+      const loop = document.getElementById('opt-loop').checked ? '1' : '0';
+      
+      return `${baseUrl}?v=${videoId}&autoplay=${autoplay}&mute=${mute}&loop=${loop}&fullscreen=1`;
+    }
+
+    function generateAndCopy() {
+      const input = document.getElementById('yt-url').value;
+      const videoId = extractYouTubeId(input);
+
+      if (!videoId || videoId.length !== 11) {
+        alert('Please enter a valid YouTube Video ID or URL.');
+        return;
+      }
+
+      const generatedUrl = buildSignageUrl(videoId);
+      
+      document.getElementById('output-url').innerText = generatedUrl;
+      document.getElementById('output-box').classList.add('active');
+
+      navigator.clipboard.writeText(generatedUrl).then(() => {
+        showToast('Link copied to clipboard!');
+      }).catch(() => {
+        showToast('Generated link below!');
+      });
+    }
+
+    function previewVideo() {
+      const input = document.getElementById('yt-url').value;
+      const videoId = extractYouTubeId(input);
+
+      if (!videoId || videoId.length !== 11) {
+        alert('Please enter a valid YouTube Video ID or URL.');
+        return;
+      }
+
+      const generatedUrl = buildSignageUrl(videoId);
+      window.location.href = generatedUrl;
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Auto-Run Logic when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const videoParam = urlParams.get('v') || urlParams.get('video');
+      
+      if (videoParam) {
+        const videoId = extractYouTubeId(videoParam);
+        const autoPlay = urlParams.get('autoplay') !== '0';
+        const isMuted = urlParams.get('mute') !== '0';
+        const loop = urlParams.get('loop') === '1';
+
+        // Hide Dashboard UI for Signage Player
+        document.getElementById('dashboard-overlay').style.display = 'none';
+
+        // Build nocookie iframe URL
+        let embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoPlay ? 1 : 0}&mute=${isMuted ? 1 : 0}&rel=0&enablejsapi=1&controls=0`;
+        
+        if (loop) {
+          embedSrc += `&loop=1&playlist=${videoId}`;
+        }
+
+        const iframe = document.getElementById('player-iframe');
+        iframe.src = embedSrc;
+      }
+    });
+  </script>
+</body>
+</html>
